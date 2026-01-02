@@ -1,100 +1,176 @@
-# LLM FID TXT
+# LLM-TXT
 
-Generate a `llm-[fid].txt` file for any Farcaster profile. This tool helps you create a text file containing a user's profile information and their recent casts, formatted for use with language models.
+Export social and web data as LLM-ready text files with x402 micropayments.
 
-> This project was scaffolded using [bhvr.dev](https://bhvr.dev)
+**Website:** [llm-txt.fun](https://llm-txt.fun)
 
-## 🚀 Features
+## Platforms
 
-- Generate `llm-[fid].txt` files for any Farcaster profile
-- Search by username or FID
-- Customize the number of casts to include
-- Sort casts by newest or oldest
-- Include or exclude replies
-- Optional reactions (likes & recasts)
-- Optional parent casts for replies
+| Platform | URL | Description |
+|----------|-----|-------------|
+| LLM-FID | [llm-fid.fun](https://llm-fid.fun) | Export Farcaster profiles and casts |
+| LLM-BSKY | [llm-bsky.fun](https://llm-bsky.fun) | Export Bluesky profiles and posts |
+| LLM-RSS | [llm-rss.fun](https://llm-rss.fun) | Export RSS/Atom feed content |
+| LLM-GIT | [llm-git.fun](https://llm-git.fun) | Export Git repository metadata and files |
 
-## ⚠️ Limitations
+## API
 
-- Reactions and parent casts are only available when fetching a limited number of casts (not available with "All casts")
-- Parent casts are fetched in small batches to prevent rate limiting
-- Reactions are fetched in small batches to prevent rate limiting
+All endpoints are available at `https://api.llm-txt.fun` and return plain text optimized for LLM consumption.
 
-## 🏗️ Prerequisites
+### Endpoints
 
-- A Farcaster account (for using the application)
+#### GET /fid
+Export Farcaster user profile and casts.
 
-## 🚀 Getting Started
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `fid` | number | Farcaster ID |
+| `username` | string | Farcaster username (alternative to fid) |
+| `limit` | number | Max casts to return (default: 50) |
+| `all` | boolean | Fetch all casts |
+| `includeReplies` | boolean | Include reply casts |
+| `includeParents` | boolean | Include parent context for replies |
+| `includeReactions` | boolean | Include reaction counts |
+| `sortOrder` | string | "newest" or "oldest" |
 
-1. Visit [llm-fid.fun](https://llm-fid.fun)
-2. Enter a Farcaster username or FID
-3. Customize your options:
-   - Number of casts to include (1-1000)
-   - Sort order (newest or oldest)
-   - Include replies (yes/no)
-   - Include reactions (likes & recasts)
-   - Include parent casts for replies
-4. Click "Generate" to create your `llm-[fid].txt` file
+#### GET /bsky
+Export Bluesky user profile and posts.
 
-## 📝 Form Options
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `handle` | string | Bluesky handle (e.g., user.bsky.social) |
+| `did` | string | Bluesky DID (alternative to handle) |
+| `limit` | number | Max posts to return (default: 50) |
+| `all` | boolean | Fetch all posts |
+| `includeReplies` | boolean | Include reply posts |
+| `includeParents` | boolean | Include parent context |
+| `includeReactions` | boolean | Include reaction counts |
+| `sortOrder` | string | "newest" or "oldest" |
 
-### Search Options
+#### GET /rss
+Export RSS or Atom feed content.
 
-- **Username**: Enter any Farcaster username
-- **FID**: Enter any Farcaster ID number
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `url` | string | Feed URL (required) |
+| `limit` | number | Max items to return (default: 10) |
+| `all` | boolean | Fetch all items |
+| `includeContent` | boolean | Include full article content |
+| `sortOrder` | string | "newest" or "oldest" |
 
-### Output Options
+#### GET /git
+Export Git repository metadata, tree, and file contents.
 
-- **Number of Casts**:
-  - Enter a number to limit the output
-  - Select "All" to include every cast
-- **Sort Order**:
-  - Newest: Most recent casts first
-  - Oldest: Oldest casts first
-- **Include Replies**:
-  - Yes: Include all casts including replies
-  - No: Only include top-level casts
-- **Include Reactions**:
-  - Yes: Include likes and recasts for each cast
-  - No: Skip reaction counts
-  - Note: Only available when fetching a limited number of casts
-- **Include Parent Casts**:
-  - Yes: Include the parent cast text for replies
-  - No: Skip parent cast text
-  - Note: Only available when fetching a limited number of casts
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `url` | string | Repository URL (required) |
+| `branch` | string | Branch name (default: default branch) |
+| `includeTree` | boolean | Include file tree listing |
+| `includeContent` | boolean | Include file contents |
+| `include` | string | Glob patterns to include (comma-separated) |
+| `exclude` | string | Glob patterns to exclude (comma-separated) |
+| `maxFileSize` | number | Max file size in bytes (default: 100000) |
 
-## 🌐 API Usage
+#### GET /pricing
+Get current pricing configuration for all endpoints.
 
-You can also use the API directly:
+## SDK
+
+TypeScript SDK with built-in x402 payment handling.
 
 ```bash
-# Get a limited number of casts with reactions and parents
-GET https://api.llm-fid.fun/mcp?username=username&limit=10&sortOrder=newest&includeReplies=true&includeReactions=true&includeParents=true
-
-# Get all available casts (reactions and parents disabled)
-GET https://api.llm-fid.fun/mcp?username=username&sortOrder=newest&includeReplies=true&all=true
+npm install @llm-txt/sdk
 ```
 
-### API Parameters
+### Quick Start
 
-- `username` (string, optional): Farcaster username
-- `fid` (number, optional): Farcaster ID
-- `limit` (number, optional): Number of casts to return (only used when all=false)
-- `sortOrder` (string, optional): "newest" or "oldest"
-- `includeReplies` (boolean, optional): true or false
-- `includeReactions` (boolean, optional): true or false (only used when all=false)
-- `includeParents` (boolean, optional): true or false (only used when all=false)
-- `all` (boolean, optional): When true, returns all available casts (disables reactions and parents)
+```typescript
+import { LlmFidClient } from "@llm-txt/sdk";
 
-## 📄 License
+// Initialize with optional wallet signer for payments
+const client = new LlmFidClient({
+  baseUrl: "https://api.llm-txt.fun",
+  signer: walletClient  // viem WalletClient
+});
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+// Get price estimate
+const estimate = await client.getServerEstimate({
+  username: "dwr.eth",
+  limit: 100
+});
 
-## 👥 Authors
+// Fetch data (handles payment automatically)
+const result = await client.fetch({
+  username: "dwr.eth",
+  limit: 100
+});
+```
 
-- **iammatthias** - _Initial work_ - [GitHub](https://github.com/iammatthias)
+### Available Clients
 
-## 🙏 Acknowledgments
+| Client | Description |
+|--------|-------------|
+| `LlmFidClient` | Farcaster data exports |
+| `LlmBskyClient` | Bluesky data exports |
+| `LlmRssClient` | RSS/Atom feed exports |
+| `LlmGitClient` | Git repository exports |
 
-- [Farcaster](https://farcaster.xyz) for the platform
-- [bhvr.dev](https://bhvr.dev) for the monorepo starter template
+## x402 Payments
+
+Requests exceeding free tier limits require payment via [x402](https://x402.org). Payments are made in USDC on Base.
+
+- Free tier available for small requests
+- Pay-per-request micropayments
+- Automatic payment handling with SDK
+- Pricing scales with data volume
+
+## Development
+
+### Prerequisites
+
+- [Bun](https://bun.sh) runtime
+- Node.js 18+
+
+### Setup
+
+```bash
+# Install dependencies
+bun install
+
+# Start development servers
+bun run dev
+```
+
+### Project Structure
+
+```
+llm-txt/
+├── server/          # Cloudflare Workers API server
+├── sdk/             # TypeScript SDK (@llm-txt/sdk)
+├── shared/          # Shared types and components
+└── clients/
+    ├── llm-fid/     # Farcaster client
+    ├── llm-bsky/    # Bluesky client
+    ├── llm-rss/     # RSS client
+    ├── llm-git/     # Git client
+    └── llm-txt/     # Homepage
+```
+
+### Scripts
+
+| Command | Description |
+|---------|-------------|
+| `bun run dev` | Start all development servers |
+| `bun run dev:server` | Start API server only |
+| `bun run dev:fid` | Start Farcaster client |
+| `bun run dev:bsky` | Start Bluesky client |
+| `bun run dev:rss` | Start RSS client |
+| `bun run dev:git` | Start Git client |
+| `bun run dev:txt` | Start homepage |
+| `bun run build` | Build all packages |
+| `bun run deploy` | Deploy all services |
+| `bun run test` | Run SDK tests |
+
+## License
+
+MIT

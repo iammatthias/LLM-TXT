@@ -3,7 +3,7 @@
  * Common state management for all LLM-TXT frontends
  */
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useAccount, useConnect, useDisconnect, useWalletClient } from "wagmi";
 import { injected } from "wagmi/connectors";
 import type { EvmSigner } from "@llm-txt/sdk";
@@ -77,12 +77,14 @@ export function useTerminalState(debounceDelay = 500): TerminalStateReturn {
 
   const debouncedInput = useDebounce(input, debounceDelay);
 
-  const signer: EvmSigner | undefined = walletClient?.account
-    ? {
-        address: walletClient.account.address,
-        signTypedData: (args) => walletClient.signTypedData(args as Parameters<typeof walletClient.signTypedData>[0]),
-      }
-    : undefined;
+  const signer: EvmSigner | undefined = useMemo(() => {
+    if (!walletClient?.account) return undefined;
+    return {
+      address: walletClient.account.address,
+      signTypedData: (args: Parameters<EvmSigner["signTypedData"]>[0]) =>
+        walletClient.signTypedData(args as Parameters<typeof walletClient.signTypedData>[0]),
+    };
+  }, [walletClient]);
 
   const handleConnect = useCallback(() => {
     connect({ connector: injected() });

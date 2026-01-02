@@ -1,6 +1,8 @@
 {
   "name": "shared",
-  "version": "0.0.1",
+  "version": "0.3.0",
+  "description": "Shared types, components, and utilities for LLM-TXT",
+  "private": true,
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {

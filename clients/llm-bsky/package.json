@@ -1,14 +1,15 @@
 {
-  "name": "llm-bsky-client",
+  "name": "@llm-txt/llm-bsky",
+  "description": "Web client for exporting Bluesky profiles and posts as LLM-ready text",
   "private": true,
-  "version": "0.0.1",
+  "version": "0.3.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "deploy": "orbiter update --domain llm-bsky ./dist"
+    "deploy": "wrangler pages deploy ./dist --project-name=llm-bsky --commit-dirty=true"
   },
   "dependencies": {
     "@llm-txt/sdk": "workspace:*",

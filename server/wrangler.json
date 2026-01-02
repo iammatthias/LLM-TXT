@@ -1,20 +1,19 @@
 {
-  "name": "llm-fid-txt-server",
+  "name": "llm-txt-api",
   "main": "src/index.ts",
   "compatibility_date": "2025-02-13",
   "compatibility_flags": ["nodejs_compat"],
   "vars": {
     "SNAPCHAIN_BASE_URL": "http://hub.merv.fun",
-    "CORS_ORIGIN": "https://llm-fid.fun,https://llm-bsky.fun,https://llm-rss.fun,https://llm-git.fun",
-    "X402_FACILITATOR_URL": "https://x402.org/facilitator",
-    "X402_NETWORK": "eip155:84532",
-    "X402_BASE_PRICE": "$0.001",
-    "X402_PAY_TO": "0x4f9c6AcD0Dcb1d889582724B2AE6E04301671875",
-    "BSKY_SERVICE_URL": "https://public.api.bsky.app"
+    "BSKY_SERVICE_URL": "https://public.api.bsky.app",
+    "CORS_ORIGIN": "https://llm-fid.fun,https://llm-bsky.fun,https://llm-rss.fun,https://llm-git.fun,https://llm-txt.fun",
+    "X402_FACILITATOR_URL": "https://api.cdp.coinbase.com/platform/v2/x402",
+    "X402_NETWORK": "eip155:8453",
+    "X402_BASE_PRICE": "$0.001"
   },
   "routes": [
     {
-      "pattern": "api.llm-fid.fun",
+      "pattern": "api.llm-txt.fun",
       "custom_domain": true
     }
   ]

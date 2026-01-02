@@ -10,12 +10,14 @@ import {
   TerminalOptions,
   TerminalOption,
   TerminalButton,
+  PricingTable,
   useTerminalState,
+  usePricing,
   type TerminalLayoutConfig,
 } from "../../shared";
 import "./App.css";
 
-const SERVER_URL = import.meta.env.PROD ? "https://api.llm-fid.fun" : "/api";
+const SERVER_URL = import.meta.env.VITE_API_URL || (import.meta.env.PROD ? "https://api.llm-txt.fun" : "/api");
 
 const config: TerminalLayoutConfig = {
   title: "LLM-RSS.TXT",
@@ -31,6 +33,7 @@ const config: TerminalLayoutConfig = {
 
 function App() {
   const terminal = useTerminalState();
+  const { pricing, loading: pricingLoading } = usePricing(SERVER_URL);
 
   const [params, setParams] = useState<RssQueryParams>({
     url: "",
@@ -247,6 +250,8 @@ function App() {
               {terminal.isLoading ? "PROCESSING..." : "EXECUTE"}
             </TerminalButton>
           </TerminalRow>
+
+          <PricingTable pricing={pricing?.rss} loading={pricingLoading} />
         </TerminalForm>
       }
     />

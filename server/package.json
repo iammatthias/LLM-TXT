@@ -1,6 +1,8 @@
 {
-  "name": "server",
-  "version": "0.0.1",
+  "name": "@llm-txt/server",
+  "version": "0.3.0",
+  "description": "API server for LLM-TXT with x402 payment integration",
+  "private": true,
   "scripts": {
     "dev": "wrangler dev --port 3000",
     "deploy": "wrangler deploy --minify"

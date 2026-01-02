@@ -1,14 +1,15 @@
 {
-  "name": "llm-fid-client",
+  "name": "@llm-txt/llm-fid",
+  "description": "Web client for exporting Farcaster profiles and casts as LLM-ready text",
   "private": true,
-  "version": "0.0.1",
+  "version": "0.3.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "deploy": "orbiter update --domain llm-fid ./dist"
+    "deploy": "wrangler pages deploy ./dist --project-name=llm-fid --commit-dirty=true"
   },
   "dependencies": {
     "@llm-txt/sdk": "workspace:*",

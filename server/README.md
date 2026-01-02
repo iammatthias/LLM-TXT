@@ -1,90 +1,39 @@
-# Farcaster Text API
+# @llm-txt/server
 
-A simple API that returns Farcaster user profiles and posts in a clean text format.
+API server for LLM-TXT, built on Cloudflare Workers with x402 payment integration.
 
-## Installation
+## Endpoints
 
-```sh
-bun install
-```
+| Endpoint | Description |
+|----------|-------------|
+| `GET /fid` | Export Farcaster profiles and casts |
+| `GET /bsky` | Export Bluesky profiles and posts |
+| `GET /rss` | Export RSS/Atom feed content |
+| `GET /git` | Export Git repository metadata and files |
+| `GET /pricing` | Get current pricing configuration |
 
 ## Development
 
-```sh
+```bash
+# Start development server
 bun run dev
+
+# Deploy to Cloudflare
+bun run deploy
 ```
 
-## API Usage
+## Environment Variables
 
-The API is available at `https://api.llm-fid.fun` and accepts the following query parameters:
+Configure in `wrangler.json` or `.dev.vars`:
 
-### Required Parameters
+| Variable | Description |
+|----------|-------------|
+| `NEYNAR_API_KEY` | Neynar API key for Farcaster data |
+| `FACILITATOR_URL` | x402 facilitator URL |
+| `X402_BASE_PRICE` | Base price for API requests |
+| `NETWORK` | Network for payments (base-mainnet) |
+| `PAYMENT_RECIPIENT` | Wallet address for receiving payments |
 
-- `username` - Farcaster username (e.g., "jacob")
-- OR `fid` - Farcaster ID number
+## x402 Integration
 
-### Optional Parameters
-
-- `limit` - Number of posts to return (default: 10, max: 1000)
-- `includeReplies` - Include replies in the output (default: false)
-- `sortOrder` - Sort order for posts ("newest" or "oldest", default: "newest")
-- `all` - Return all available posts up to 1000 (default: false)
-
-### Example Requests
-
-Get latest 10 posts from a user:
-
-```
-https://api.llm-fid.fun?username=jacob&limit=10&includeReplies=false&sortOrder=newest
-```
-
-Get all posts from a user:
-
-```
-https://api.llm-fid.fun?username=jacob&all=true
-```
-
-Get oldest posts including replies:
-
-```
-https://api.llm-fid.fun?username=jacob&limit=20&includeReplies=true&sortOrder=oldest
-```
-
-### Response Format
-
-The API returns a plain text response with the following format:
-
-```
-Farcaster User Profile
-===================
-
-Username: username
-Display Name: Display Name
-FID: 12345
-Bio: User's bio
-Profile Picture: https://...
-URL: https://...
-Location: Location
-Twitter: @twitter
-GitHub: github
-
-Posts
-=====
-
-[1] 2024-03-20T12:34:56.789Z
-Post content here
-
-Attachments:
-- image: https://...
-
-Embeds:
-- https://...
-
----
-
-[2] 2024-03-19T12:34:56.789Z
-[Reply]
-Reply content here
-
----
-```
+This server uses [x402](https://x402.org) for micropayments. Requests exceeding free tier limits return a 402 Payment Required response with payment details in headers.

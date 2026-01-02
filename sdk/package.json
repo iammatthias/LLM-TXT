@@ -1,7 +1,15 @@
 {
   "name": "@llm-txt/sdk",
-  "version": "0.1.0",
-  "description": "SDK for the llm-txt paywalled API",
+  "version": "0.3.0",
+  "description": "TypeScript SDK for the LLM-TXT API with built-in x402 payment handling",
+  "author": "iammatthias",
+  "license": "MIT",
+  "homepage": "https://llm-txt.fun",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/iammatthias/llm-txt",
+    "directory": "sdk"
+  },
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -11,6 +19,9 @@
       "types": "./dist/index.d.ts"
     }
   },
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",
@@ -32,13 +43,14 @@
   },
   "keywords": [
     "llm-txt",
+    "llm",
     "farcaster",
     "bluesky",
     "rss",
     "git",
     "x402",
-    "payments",
-    "sdk"
-  ],
-  "license": "MIT"
+    "micropayments",
+    "sdk",
+    "typescript"
+  ]
 }

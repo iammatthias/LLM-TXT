@@ -15,6 +15,7 @@ import {
   declareDiscoveryExtension,
 } from "@x402/extensions/bazaar";
 import type { Network } from "@x402/core/types";
+import { generateJwt } from "@coinbase/cdp-sdk/auth";
 
 type Bindings = {
   NEYNAR_API_KEY: string;
@@ -25,6 +26,9 @@ type Bindings = {
   X402_NETWORK: string; // Network (e.g., "eip155:8453" for Base mainnet)
   X402_FACILITATOR_URL: string; // Facilitator URL
   BSKY_SERVICE_URL: string; // Bluesky API service URL
+  // CDP API credentials for mainnet facilitator
+  CDP_API_KEY_ID?: string;
+  CDP_API_KEY_SECRET?: string;
 };
 
 // Dynamic pricing based on query parameters
@@ -734,26 +738,82 @@ function formatBskyTextOutput(data: BlueskyResponse & { params?: BlueskyQueryPar
 // App
 const app = new Hono<{ Bindings: Bindings }>();
 
-app.use(
-  "/*",
-  cors({
-    origin: ["https://llm-fid.fun", "https://llm-bsky.fun", "https://llm-rss.fun", "https://llm-git.fun", "http://localhost:3000", "http://localhost:5173"],
+// Dynamic CORS middleware - reads allowed origins from CORS_ORIGIN env var
+app.use("/*", async (c, next) => {
+  const allowedOrigins = c.env.CORS_ORIGIN?.split(",") || [];
+  const origin = c.req.header("Origin") || "";
+
+  const corsMiddleware = cors({
+    origin: allowedOrigins.includes(origin) ? origin : allowedOrigins[0] || "",
     allowMethods: ["GET", "OPTIONS"],
     allowHeaders: ["Content-Type", "Accept", "X-PAYMENT"],
     exposeHeaders: ["X-PAYMENT-RESPONSE"],
     maxAge: 86400,
-  })
-);
+  });
+
+  return corsMiddleware(c, next);
+});
 
 // Lazy-initialized x402 server (avoids global scope async in Cloudflare Workers)
 let x402ServerInstance: x402ResourceServer | null = null;
+let lastFacilitatorConfig: string | null = null;
 
-function getX402Server(facilitatorUrl: string): x402ResourceServer {
-  if (!x402ServerInstance) {
-    const facilitatorClient = new HTTPFacilitatorClient({ url: facilitatorUrl });
+interface FacilitatorConfig {
+  url: string;
+  cdpApiKeyId?: string;
+  cdpApiKeySecret?: string;
+}
+
+function getX402Server(config: FacilitatorConfig): x402ResourceServer {
+  const configKey = `${config.url}:${config.cdpApiKeyId || ""}`;
+
+  if (!x402ServerInstance || lastFacilitatorConfig !== configKey) {
+    // Create auth headers function for CDP facilitator authentication using JWT
+    const createAuthHeaders = config.cdpApiKeyId && config.cdpApiKeySecret
+      ? async () => {
+          const host = "api.cdp.coinbase.com";
+
+          // Generate JWTs for each endpoint
+          const [verifyJwt, settleJwt, supportedJwt] = await Promise.all([
+            generateJwt({
+              apiKeyId: config.cdpApiKeyId!,
+              apiKeySecret: config.cdpApiKeySecret!,
+              requestMethod: "POST",
+              requestHost: host,
+              requestPath: "/platform/v2/x402/verify",
+            }),
+            generateJwt({
+              apiKeyId: config.cdpApiKeyId!,
+              apiKeySecret: config.cdpApiKeySecret!,
+              requestMethod: "POST",
+              requestHost: host,
+              requestPath: "/platform/v2/x402/settle",
+            }),
+            generateJwt({
+              apiKeyId: config.cdpApiKeyId!,
+              apiKeySecret: config.cdpApiKeySecret!,
+              requestMethod: "GET",
+              requestHost: host,
+              requestPath: "/platform/v2/x402/supported",
+            }),
+          ]);
+
+          return {
+            verify: { Authorization: `Bearer ${verifyJwt}` },
+            settle: { Authorization: `Bearer ${settleJwt}` },
+            supported: { Authorization: `Bearer ${supportedJwt}` },
+          };
+        }
+      : undefined;
+
+    const facilitatorClient = new HTTPFacilitatorClient({
+      url: config.url,
+      createAuthHeaders,
+    });
     x402ServerInstance = new x402ResourceServer(facilitatorClient);
     registerExactEvmScheme(x402ServerInstance);
     x402ServerInstance.registerExtension(bazaarResourceServerExtension);
+    lastFacilitatorConfig = configKey;
   }
   return x402ServerInstance;
 }
@@ -832,7 +892,11 @@ app.use("/", async (c, next) => {
   }
 
   const dynamicPrice = calculateDynamicPriceWithCastCount(pricingParams, castCount, parseDollarPrice(basePrice));
-  const server = getX402Server(facilitatorUrl);
+  const server = getX402Server({
+    url: facilitatorUrl,
+    cdpApiKeyId: c.env.CDP_API_KEY_ID,
+    cdpApiKeySecret: c.env.CDP_API_KEY_SECRET,
+  });
 
   // Use @x402/hono v2 API
   const middleware = paymentMiddleware(
@@ -878,6 +942,71 @@ app.use("/", async (c, next) => {
   );
 
   return middleware(c, next);
+});
+
+// Pricing info endpoint - returns pricing configuration for all services
+// Used by frontends to display accurate pricing tables
+app.get("/pricing", async (c) => {
+  const basePrice = c.env.X402_BASE_PRICE || "$0.001";
+
+  return c.json({
+    farcaster: {
+      freeTier: { maxCasts: FREE_TIER.maxLimit, description: "Up to 10 casts (basic)" },
+      examples: [
+        { description: "50 casts", cost: "$0.001" },
+        { description: "500 casts", cost: "$0.004" },
+        { description: "5,000 casts", cost: "$0.034" },
+      ],
+      modifiers: [
+        { feature: "includeReplies", effect: "+25%", description: "Include reply casts" },
+        { feature: "includeReactions", effect: "+10%", description: "Include reaction counts" },
+        { feature: "includeParents", effect: "+60% per cast", description: "Fetch parent context for replies" },
+      ],
+      note: "Pricing scales with data volume. Parent lookups add significant cost for large exports.",
+    },
+    bluesky: {
+      freeTier: { maxPosts: FREE_TIER.maxLimit, description: "Up to 10 posts (basic)" },
+      examples: [
+        { description: "50 posts", cost: "$0.001" },
+        { description: "500 posts", cost: "$0.004" },
+        { description: "5,000 posts", cost: "$0.034" },
+      ],
+      modifiers: [
+        { feature: "includeReplies", effect: "+25%", description: "Include reply posts" },
+        { feature: "includeReactions", effect: "+10%", description: "Include reaction counts" },
+        { feature: "includeParents", effect: "+60% per post", description: "Fetch parent context for replies" },
+      ],
+      note: "Pricing scales with data volume. Parent lookups add significant cost for large exports.",
+    },
+    rss: {
+      freeTier: { maxItems: RSS_PRICING.freeTierMaxItems, description: "Up to 5 items (summaries)" },
+      examples: [
+        { description: "10 items", cost: "$0.001" },
+        { description: "50 items", cost: "$0.003" },
+        { description: "100 items", cost: "$0.006" },
+      ],
+      modifiers: [
+        { feature: "includeContent", effect: "+50%", description: "Include full article content" },
+      ],
+      note: "Pricing scales with number of feed items exported.",
+    },
+    git: {
+      freeTier: { description: "Metadata only, or file tree for small repos (≤10 files)" },
+      examples: [
+        { description: "File tree only (100 files)", cost: "$0.001" },
+        { description: "With content (1MB repo)", cost: "~$0.02" },
+        { description: "With content (10MB repo)", cost: "~$0.15" },
+      ],
+      modifiers: [
+        { feature: "includePatterns", effect: "Reduces cost", description: "Filter to specific files" },
+        { feature: "excludePatterns", effect: "Reduces cost", description: "Exclude files from export" },
+        { feature: "maxFileSize", effect: "Reduces cost", description: "Limit file size for content" },
+      ],
+      note: "Pricing scales with output size. Using filters significantly reduces cost.",
+    },
+    basePrice,
+    currency: "USD",
+  });
 });
 
 // Price estimate endpoint - returns authoritative price from server
@@ -1204,7 +1333,11 @@ app.use("/bsky", async (c, next) => {
   }
 
   const dynamicPrice = calculateDynamicPriceWithCastCount(pricingParams, postCount, parseDollarPrice(basePrice));
-  const server = getX402Server(facilitatorUrl);
+  const server = getX402Server({
+    url: facilitatorUrl,
+    cdpApiKeyId: c.env.CDP_API_KEY_ID,
+    cdpApiKeySecret: c.env.CDP_API_KEY_SECRET,
+  });
 
   const middleware = paymentMiddleware(
     {
@@ -1617,7 +1750,11 @@ app.use("/rss", async (c, next) => {
   }
 
   const dynamicPrice = calculateRssPrice(pricingParams, parseDollarPrice(basePrice));
-  const server = getX402Server(facilitatorUrl);
+  const server = getX402Server({
+    url: facilitatorUrl,
+    cdpApiKeyId: c.env.CDP_API_KEY_ID,
+    cdpApiKeySecret: c.env.CDP_API_KEY_SECRET,
+  });
 
   const middleware = paymentMiddleware(
     {
@@ -1799,6 +1936,9 @@ interface GitPricingParams {
   estimatedOutputKB?: number;
   includeContent?: boolean;
   includeTree?: boolean;
+  includePatterns?: string[];  // Glob patterns to include
+  excludePatterns?: string[];  // Glob patterns to exclude
+  maxFileSize?: number;        // Max file size in bytes
 }
 
 function isGitFreeTier(params: GitPricingParams): boolean {
@@ -1820,7 +1960,25 @@ function calculateGitPrice(params: GitPricingParams, basePrice: number): string 
     }
     if (params.includeContent) {
       // Estimate text content at 30% of repo size
-      estimatedKB += (params.repoSize || 0) * 0.3;
+      let contentEstimate = (params.repoSize || 0) * 0.3;
+
+      // Apply reduction factors for filtering
+      if (params.includePatterns && params.includePatterns.length > 0) {
+        // Include patterns significantly reduce output - estimate 20% of original
+        contentEstimate *= 0.2;
+      }
+      if (params.excludePatterns && params.excludePatterns.length > 0) {
+        // Exclude patterns reduce output - estimate 70% of current
+        contentEstimate *= 0.7;
+      }
+      if (params.maxFileSize && params.maxFileSize < 100000) {
+        // Small maxFileSize limit reduces output
+        // Default is 100KB, so if lower, apply proportional reduction
+        const reduction = Math.max(0.1, params.maxFileSize / 100000);
+        contentEstimate *= reduction;
+      }
+
+      estimatedKB += contentEstimate;
     }
   }
 
@@ -2191,9 +2349,17 @@ app.get("/git/estimate", async (c) => {
       return c.json({ error: "url required" }, 400);
     }
 
+    // Parse filter patterns
+    const includeParam = c.req.query("include");
+    const excludeParam = c.req.query("exclude");
+    const maxFileSizeParam = c.req.query("maxFileSize");
+
     const params: GitPricingParams = {
       includeContent: c.req.query("includeContent") === "true",
       includeTree: c.req.query("includeTree") === "true",
+      includePatterns: includeParam ? includeParam.split(",").map(p => p.trim()).filter(Boolean) : undefined,
+      excludePatterns: excludeParam ? excludeParam.split(",").map(p => p.trim()).filter(Boolean) : undefined,
+      maxFileSize: maxFileSizeParam ? Number(maxFileSizeParam) : undefined,
     };
 
     if (isGitFreeTier(params)) {
@@ -2266,6 +2432,9 @@ app.use("/git", async (c, next) => {
   const pricingParams: GitPricingParams = {
     includeContent: String(query.includeContent).toLowerCase() === "true",
     includeTree: String(query.includeTree).toLowerCase() === "true",
+    includePatterns: query.include ? String(query.include).split(",").map(p => p.trim()).filter(Boolean) : undefined,
+    excludePatterns: query.exclude ? String(query.exclude).split(",").map(p => p.trim()).filter(Boolean) : undefined,
+    maxFileSize: query.maxFileSize ? Number(query.maxFileSize) : undefined,
   };
 
   if (isGitFreeTier(pricingParams)) {
@@ -2292,7 +2461,11 @@ app.use("/git", async (c, next) => {
   }
 
   const dynamicPrice = calculateGitPrice(pricingParams, parseDollarPrice(basePrice));
-  const server = getX402Server(facilitatorUrl);
+  const server = getX402Server({
+    url: facilitatorUrl,
+    cdpApiKeyId: c.env.CDP_API_KEY_ID,
+    cdpApiKeySecret: c.env.CDP_API_KEY_SECRET,
+  });
 
   const middleware = paymentMiddleware(
     {

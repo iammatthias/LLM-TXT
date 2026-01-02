@@ -1,10 +1,14 @@
 {
   "name": "llm-txt",
   "version": "0.3.0",
-  "description": "Generate a llm.txt file for various platforms",
+  "description": "Export social and web data as LLM-ready text files with x402 micropayments",
   "author": "iammatthias",
   "license": "MIT",
-  "homepage": "https://github.com/iammatthias/llm-txt",
+  "homepage": "https://llm-txt.fun",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/iammatthias/llm-txt"
+  },
   "overrides": {
     "hono": "^4.7.7"
   },
@@ -19,6 +23,7 @@
     "dev:bsky": "cd clients/llm-bsky && bun run dev",
     "dev:rss": "cd clients/llm-rss && bun run dev",
     "dev:git": "cd clients/llm-git && bun run dev",
+    "dev:txt": "cd clients/llm-txt && bun run dev",
     "dev:server": "cd server && bun run dev",
     "dev:shared": "cd shared && bun run dev",
     "dev:sdk": "cd sdk && bun run dev",
@@ -28,17 +33,19 @@
     "build:bsky": "cd clients/llm-bsky && bun run build",
     "build:rss": "cd clients/llm-rss && bun run build",
     "build:git": "cd clients/llm-git && bun run build",
+    "build:txt": "cd clients/llm-txt && bun run build",
     "build:shared": "cd shared && bun run build",
     "build:sdk": "cd sdk && bun run build",
     "build:test-app": "cd clients/test-app && bun run build",
-    "build": "bun run build:shared && bun run build:sdk && bun run build:fid && bun run build:bsky && bun run build:rss && bun run build:git",
+    "build": "bun run build:shared && bun run build:sdk && bun run build:fid && bun run build:bsky && bun run build:rss && bun run build:git && bun run build:txt",
     "postinstall": "bun run build:shared && bun run build:sdk",
     "deploy:fid": "cd clients/llm-fid && bun run deploy",
     "deploy:bsky": "cd clients/llm-bsky && bun run deploy",
     "deploy:rss": "cd clients/llm-rss && bun run deploy",
     "deploy:git": "cd clients/llm-git && bun run deploy",
+    "deploy:txt": "cd clients/llm-txt && bun run deploy",
     "deploy:server": "cd server && bun run deploy",
-    "deploy": "bun run deploy:fid && bun run deploy:bsky && bun run deploy:rss && bun run deploy:git && bun run deploy:server",
+    "deploy": "bun run deploy:fid && bun run deploy:bsky && bun run deploy:rss && bun run deploy:git && bun run deploy:txt && bun run deploy:server",
     "test": "cd sdk && bun run test",
     "test:unit": "cd sdk && bun run test:unit",
     "test:integration": "cd sdk && bun run test:integration",
@@ -46,11 +53,15 @@
   },
   "keywords": [
     "llm-txt",
-    "bun",
-    "hono",
-    "react",
-    "vite",
-    "monorepo"
+    "llm",
+    "farcaster",
+    "bluesky",
+    "rss",
+    "git",
+    "x402",
+    "micropayments",
+    "api",
+    "sdk"
   ],
   "devDependencies": {
     "bun-types": "latest",
